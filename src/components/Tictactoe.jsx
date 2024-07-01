@@ -1,16 +1,17 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faX, faO, faRedo } from '@fortawesome/free-solid-svg-icons'
 import Modal from './Modal'
 
 export default function Tictactoe() {
     
-    const [board, setBoard] = React.useState(Array(9).fill(null))
-    const [isXNext, setIsXNext] = React.useState(true)
-    const [title, setTitle] = React.useState('Tic-Tac-Toe Game')
-    const [isModalOpen, setIsModalOpen] = React.useState(true)
-    const [isSinglePlayer, setIsSinglePlayer] = React.useState(null)
-    const [playerChoice, setPlayerChoice] = React.useState(null)
+    const [board, setBoard] = useState(Array(9).fill(null))
+    const [isXNext, setIsXNext] = useState(true)
+    const [title, setTitle] = useState('Tic-Tac-Toe Game')
+    const [isModalOpen, setIsModalOpen] = useState(true)
+    const [isSinglePlayer, setIsSinglePlayer] = useState(null)
+    const [playerChoice, setPlayerChoice] = useState(null)
+    const [firstAIMove, setFirstAIMove] = useState(true)
 
     const handleClick = (index) => {
         const newBoard = [...board]
@@ -26,13 +27,72 @@ export default function Tictactoe() {
         .map((value, index) => (value === null ? index : null))
         .filter((value) => value !== null)
 
-        const randomIndex = emptyIndexes[Math.floor(Math.random() * emptyIndexes.length)]
-        newBoard[randomIndex] = playerChoice === 'X' ? 'O' : 'X'
+        if (emptyIndexes.length === 0) 
+            return
+
+        if (firstAIMove) {
+            const randomIndex = emptyIndexes[Math.floor(Math.random() * emptyIndexes.length)]
+            newBoard[randomIndex] = playerChoice === 'X' ? 'O' : 'X'
+        } else {
+            const bestMove = getBestMove(newBoard, playerChoice === 'X' ? 'O' : 'X')
+            newBoard[bestMove] = playerChoice === 'X' ? 'O' : 'X'
+        }
+
         setBoard(newBoard)
         setIsXNext(true)
     }
 
-    React.useEffect(() => {
+    const getBestMove = (newBoard, aiPlayer) => {
+        let bestScore = -Infinity
+        let move
+        newBoard.forEach((cell, index) => {
+            if (cell === null) {
+                newBoard[index] = aiPlayer
+                const score = minimax(newBoard, 0, false, aiPlayer)
+                newBoard[index] = null
+                if (score > bestScore) {
+                    bestScore = score
+                    move = index
+                }
+            }
+        })
+        return move
+    }
+
+    const minimax = (newBoard, depth, isMaximizing, aiPlayer) => {
+        const humanPlayer = aiPlayer === 'X' ? 'O' : 'X'
+        const winner = calculateWinner(newBoard)
+
+        if (winner === aiPlayer) return 10 - depth
+        if (winner === humanPlayer) return depth - 10
+        if (newBoard.every(cell => cell !== null)) return 0
+
+        if (isMaximizing) {
+            let bestScore = -Infinity
+            newBoard.forEach((cell, index) => {
+                if (cell === null) {
+                    newBoard[index] = aiPlayer
+                    const score = minimax(newBoard, depth + 1, false, aiPlayer)
+                    newBoard[index] = null
+                    bestScore = Math.max(score, bestScore)
+                }
+            });
+            return bestScore;
+        } else {
+            let bestScore = Infinity
+            newBoard.forEach((cell, index) => {
+                if (cell === null) {
+                    newBoard[index] = humanPlayer
+                    const score = minimax(newBoard, depth + 1, true, aiPlayer)
+                    newBoard[index] = null
+                    bestScore = Math.min(score, bestScore)
+                }
+            })
+            return bestScore
+        }
+    }
+
+    useEffect(() => {
         if (isSinglePlayer && !isXNext && !calculateWinner(board)) {
             const newBoard = [...board]
             aiMove(newBoard)
@@ -41,8 +101,9 @@ export default function Tictactoe() {
 
     const resetGame = () => {
         setBoard(Array(9).fill(null))
-        setIsXNext(true)
+        setIsXNext(playerChoice !== 'O')
         setTitle('Tic-Tac-Toe Game')
+        setFirstAIMove(true)
         if (isSinglePlayer && playerChoice === 'O') {
             setIsXNext(false);
             aiMove(Array(9).fill(null));
@@ -81,7 +142,7 @@ export default function Tictactoe() {
     const winner = calculateWinner(board)
     const draw = !winner && board.every((box) => box !== null)
     
-    React.useEffect(() => {
+    useEffect(() => {
         if (winner) {
             setTitle(`${winner} Wins!`)
         } else if (draw) {
@@ -91,6 +152,7 @@ export default function Tictactoe() {
 
     const startGame = () => {
         setIsModalOpen(false)
+        setIsXNext(playerChoice !== 'O' )
         if (isSinglePlayer && playerChoice === 'O') {
             setIsXNext(false)
             const newBoard = [...board]
@@ -144,8 +206,4 @@ export default function Tictactoe() {
           )}
         </div>
     )
-}
-
-// AI for Single Player: Implement a basic AI for single-player mode.
-// End Game Message: Display a message when the game ends (either win or draw).
-// Responsive Design: Ensure the game works well on different screen sizes.  
+}  
